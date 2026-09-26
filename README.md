@@ -95,7 +95,6 @@ negative_rate > threshold over the recent window → alert
 | **Apache Parquet** | Columnar Data Lake (model, predictions, metrics) |
 | **Streamlit + Plotly** | Interactive visualization dashboard |
 | **Docker / Docker Compose** | Stack orchestration (ZooKeeper, Kafka, Kafka UI, Spark master/worker) |
-| **Python** | Main language (producers, configuration, dashboard) |
 
 ---
 
