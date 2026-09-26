@@ -1,96 +1,101 @@
 # Real-Time Sentiment Analysis — Big Data Pipeline
 
 > Kafka · Spark Structured Streaming · MLlib · Parquet · Streamlit
-> Surveillance de la réputation d'une marque à partir de flux de tweets en temps réel.
+> Real-time brand reputation monitoring from live tweet streams.
 
 ---
 
-## Sommaire
+## Table of Contents
 
-1. [Aperçu](#aperçu)
-2. [Captures d'écran — Dashboard](#captures-décran--dashboard)
-3. [Architecture du pipeline](#architecture-du-pipeline)
-4. [Stack technique](#stack-technique)
+1. [Overview](#overview)
+2. [Screenshots — Dashboard](#screenshots--dashboard)
+3. [Pipeline Architecture](#pipeline-architecture)
+4. [Tech Stack](#tech-stack)
 5. [Datasets](#datasets)
-6. [Résultats du modèle](#résultats-du-modèle)
-7. [Notebooks & figures](#notebooks--figures)
-8. [Démarrage rapide — visualiser le dashboard](#démarrage-rapide--visualiser-le-dashboard)
-9. [Structure du projet](#structure-du-projet)
+6. [Model Results](#model-results)
+7. [Notebooks & Figures](#notebooks--figures)
+8. [Quick Start — View the Dashboard](#quick-start--view-the-dashboard)
+9. [Project Structure](#project-structure)
 
 ---
 
-## Aperçu
+## Overview
 
-Le projet construit une chaîne complète de traitement Big Data pour l'analyse de sentiment :
+The project builds a full Big Data processing chain for sentiment analysis:
 
-1. **Entraînement hors-ligne** d'un modèle de classification (Régression Logistique + TF-IDF) sur 1,6 million de tweets annotés (Sentiment140).
-2. **Streaming temps réel** : ingestion de tweets via Kafka, inférence du modèle dans Spark Structured Streaming, écriture des prédictions dans un Data Lake Parquet.
-3. **Surveillance de marque** : un flux dédié de tweets mentionnant Apple est analysé en continu et visualisé dans un dashboard Streamlit (KPIs, tendance du sentiment, alertes de "bad buzz").
-
----
-
-## Captures d'écran — Dashboard
-
-**Vue d'ensemble** — statut de la marque et indicateurs clés
-
-![Vue d'ensemble du dashboard](docs/screenshots/dashboard_overview.png)
-
-**Tendance du sentiment et répartition globale**
-
-![Graphiques de tendance et de répartition](docs/screenshots/dashboard_charts.png)
-
-**Distribution de la confiance du modèle et répartition par produit**
-
-![Histogramme de confiance et distribution par produit](docs/screenshots/dashboard_distribution.png)
-
-**Tweets les plus négatifs**
-
-![Tableau des tweets les plus négatifs](docs/screenshots/dashboard_negative_tweets.png)
-
-**Stack applicative en cours d'exécution (Docker Desktop)**
-
-![Stack Docker en cours d'exécution](docs/screenshots/docker_stack_running.png)
+1. **Offline training** of a classification model (Logistic Regression + TF-IDF) on
+   1.6 million labeled tweets (Sentiment140).
+2. **Real-time streaming**: tweet ingestion via Kafka, model inference in Spark
+   Structured Streaming, predictions written to a Parquet Data Lake.
+3. **Brand monitoring**: a dedicated stream of tweets mentioning Apple is
+   continuously analyzed and visualized in a Streamlit dashboard (KPIs, sentiment
+   trend, "bad buzz" alerts).
 
 ---
 
-## Architecture du pipeline
-![Architecture du pipeline](docs/figures/architecture_pipeline.png)
+## Screenshots — Dashboard
+
+**Overview** — brand status and key indicators
+
+![Dashboard overview](docs/screenshots/dashboard_overview.png)
+
+**Sentiment trend and overall breakdown**
+
+![Trend and breakdown charts](docs/screenshots/dashboard_charts.png)
+
+**Model confidence distribution and breakdown by product**
+
+![Confidence histogram and product distribution](docs/screenshots/dashboard_distribution.png)
+
+**Most negative tweets**
+
+![Most negative tweets table](docs/screenshots/dashboard_negative_tweets.png)
+
+**Running application stack (Docker Desktop)**
+
+![Running Docker stack](docs/screenshots/docker_stack_running.png)
+
+---
+
+## Pipeline Architecture
+![Pipeline architecture](docs/figures/architecture_pipeline.png)
 
 
-### Couche métier "Neutral"
+### "Neutral" business layer
 
-Le modèle est binaire (positif / négatif). Une couche de post-traitement reclasse une prédiction en **Neutral** lorsque la confiance du modèle est faible :
+The model is binary (positive / negative). A post-processing layer reclassifies a
+prediction as **Neutral** when the model's confidence is low:
 
 ```
-confiance = max(P(positif), P(négatif))
+confidence = max(P(positive), P(negative))
 
-confiance < seuil       → Neutral
-confiance ≥ seuil, label positif → Positive
-confiance ≥ seuil, label négatif → Negative
+confidence < threshold       → Neutral
+confidence ≥ threshold, positive label → Positive
+confidence ≥ threshold, negative label → Negative
 ```
 
-### Détection de "bad buzz"
+### "Bad buzz" detection
 
 ```
-taux_négatif = négatifs / (positifs + négatifs)   [neutres exclus]
+negative_rate = negatives / (positives + negatives)   [neutrals excluded]
 
-taux_négatif > seuil sur la fenêtre récente → alerte
+negative_rate > threshold over the recent window → alert
 ```
 
 ---
 
-## Stack technique
+## Tech Stack
 
-| Composant | Rôle |
+| Component | Role |
 |---|---|
-| **Apache Kafka** | Ingestion et messagerie temps réel |
-| **Apache ZooKeeper** | Coordination et gestion des métadonnées du cluster Kafka |
-| **Kafka UI** | Interface web de supervision des topics et messages Kafka |
-| **Apache Spark (Structured Streaming + MLlib)** | Traitement batch et streaming, entraînement et inférence |
-| **Apache Parquet** | Data Lake colonnaire (modèle, prédictions, métriques) |
-| **Streamlit + Plotly** | Dashboard de visualisation interactif |
-| **Docker / Docker Compose** | Orchestration de la stack (ZooKeeper, Kafka, Kafka UI, Spark master/worker) |
-| **Python** | Langage principal (producers, configuration, dashboard) |
+| **Apache Kafka** | Real-time ingestion and messaging |
+| **Apache ZooKeeper** | Coordination and metadata management for the Kafka cluster |
+| **Kafka UI** | Web interface for monitoring Kafka topics and messages |
+| **Apache Spark (Structured Streaming + MLlib)** | Batch and streaming processing, training and inference |
+| **Apache Parquet** | Columnar Data Lake (model, predictions, metrics) |
+| **Streamlit + Plotly** | Interactive visualization dashboard |
+| **Docker / Docker Compose** | Stack orchestration (ZooKeeper, Kafka, Kafka UI, Spark master/worker) |
+| **Python** | Main language (producers, configuration, dashboard) |
 
 ---
 
@@ -98,19 +103,21 @@ taux_négatif > seuil sur la fenêtre récente → alerte
 
 | | Sentiment140 | Apple Tweets |
 |---|---|---|
-| Volume | ~1 600 000 tweets | ~9 000 tweets |
-| Rôle | Entraînement du modèle + flux de démonstration à grande échelle | Cas d'usage métier : surveillance de la marque Apple |
+| Volume | ~1,600,000 tweets | ~9,000 tweets |
+| Role | Model training + large-scale demo stream | Business use case: Apple brand monitoring |
 | Source | Stanford — Sentiment140 | Kaggle — Apple Twitter Sentiment Dataset |
 
-> Les fichiers bruts ne sont pas versionnés (voir `.gitignore`) : à télécharger séparément et à placer dans `data/raw/`.
+> Raw files are not version-controlled (see `.gitignore`): download them separately
+> and place them in `data/raw/`.
 
 ---
 
-## Résultats du modèle
+## Model Results
 
-Dernière évaluation sur le jeu de test (`src/evaluate_model.py`, métriques sauvegardées dans `data/metrics/sentiment_metrics.parquet`) :
+Latest evaluation on the test set (`src/evaluate_model.py`, metrics saved in
+`data/metrics/sentiment_metrics.parquet`):
 
-| Métrique | Valeur |
+| Metric | Value |
 |---|---|
 | Accuracy | 0.766 |
 | Precision | 0.766 |
@@ -118,62 +125,64 @@ Dernière évaluation sur le jeu de test (`src/evaluate_model.py`, métriques sa
 | F1-score | 0.766 |
 | AUC-ROC | 0.830 |
 
-Matrice de confusion (jeu de test) :
+Confusion matrix (test set):
 
-| | Prédit négatif | Prédit positif |
+| | Predicted negative | Predicted positive |
 |---|---|---|
-| **Réel négatif** | 119 880 (TN) | 39 875 (FP) |
-| **Réel positif** | 34 675 (FN) | 124 133 (TP) |
+| **Actual negative** | 119,880 (TN) | 39,875 (FP) |
+| **Actual positive** | 34,675 (FN) | 124,133 (TP) |
 
 ---
 
-## Notebooks & figures
+## Notebooks & Figures
 
-| Notebook | Contenu |
+| Notebook | Content |
 |---|---|
-| `01_exploration_sentiment140.ipynb` | Exploration et qualité des données, distribution des classes |
-| `02_preprocessing_sentiment140_pyspark.ipynb` | Nettoyage NLP, tokenisation, TF-IDF |
-| `03_training_model_spark_mllib.ipynb` | Entraînement du modèle, métriques d'évaluation |
+| `01_exploration_sentiment140.ipynb` | Data exploration and quality, class distribution |
+| `02_preprocessing_sentiment140_pyspark.ipynb` | NLP cleaning, tokenization, TF-IDF |
+| `03_training_model_spark_mllib.ipynb` | Model training, evaluation metrics |
 
-**Distribution des classes (Sentiment140)**
+**Class distribution (Sentiment140)**
 
-![Distribution des classes](docs/figures/class_distribution.png)
+![Class distribution](docs/figures/class_distribution.png)
 
-**Métriques d'entraînement**
+**Training metrics**
 
-![Métriques d'entraînement](docs/figures/training_metrics.png)
+![Training metrics](docs/figures/training_metrics.png)
 
 ---
 
-## Démarrage rapide — visualiser le dashboard
+## Quick Start — View the Dashboard
 
-Pipeline complet pour faire tourner l'application et observer le dashboard en conditions réelles. Toutes les commandes sont à exécuter depuis la racine du projet, sous PowerShell (Windows + Docker Desktop).
+Full pipeline to run the application and observe the dashboard under real
+conditions. All commands are to be run from the project root, in PowerShell
+(Windows + Docker Desktop).
 
-### 1. Démarrer la stack Docker (Kafka + Spark)
+### 1. Start the Docker stack (Kafka + Spark)
 
 ```powershell
-docker-compose build                              # première fois uniquement
+docker-compose build                              # first time only
 docker-compose up -d
 docker-compose --profile tools up -d spark-submit
-docker-compose ps                                 # vérifier que tout est "running"
+docker-compose ps                                 # verify everything is "running"
 ```
 
-### 2. Créer les topics Kafka (première fois uniquement)
+### 2. Create the Kafka topics (first time only)
 
 ```powershell
 docker exec kafka kafka-topics --create --bootstrap-server localhost:9092 --topic sentiment_stream --partitions 4 --replication-factor 1 --if-not-exists
 docker exec kafka kafka-topics --create --bootstrap-server localhost:9092 --topic apple_tweets --partitions 1 --replication-factor 1 --if-not-exists
-docker exec kafka kafka-topics --list --bootstrap-server localhost:9092   # doit lister les deux topics
+docker exec kafka kafka-topics --list --bootstrap-server localhost:9092   # should list both topics
 ```
 
-### 3. Préparer le modèle (si `data/models/sentiment_model/` est vide)
+### 3. Prepare the model (if `data/models/sentiment_model/` is empty)
 
 ```powershell
 docker exec spark-submit python src/preprocessing.py
-docker exec spark-submit python src/train_model.py --sample 0.1   # version rapide pour test
+docker exec spark-submit python src/train_model.py --sample 0.1   # quick version for testing
 ```
 
-### 4. Lancer les consumers Spark Streaming (un terminal par commande)
+### 4. Start the Spark Streaming consumers (one terminal per command)
 
 ```powershell
 # Terminal A
@@ -183,7 +192,7 @@ docker exec spark-submit python src/spark_streaming_consumer_sentiment140.py
 docker exec spark-submit python src/spark_streaming_consumer_apple.py
 ```
 
-### 5. Lancer les producers Kafka (environnement Python local, venv activé)
+### 5. Start the Kafka producers (local Python environment, venv activated)
 
 ```powershell
 # Terminal C
@@ -195,7 +204,7 @@ python src/kafka_producer_sentiment140.py --max-rows 50000
 python src/kafka_producer_apple.py --loop
 ```
 
-### 6. Lancer le dashboard
+### 6. Launch the dashboard
 
 ```powershell
 # Terminal E
@@ -203,58 +212,60 @@ python src/kafka_producer_apple.py --loop
 streamlit run dashboard/app.py
 ```
 
-Ouvrir ensuite **http://localhost:8501**. Le dashboard se rafraîchit automatiquement et affiche les KPIs, la tendance du sentiment et les alertes dès que les fichiers Parquet sont alimentés par les consumers.
+Then open **http://localhost:8501**. The dashboard refreshes automatically and
+displays KPIs, sentiment trend, and alerts as soon as the Parquet files are fed by
+the consumers.
 
-> Guide détaillé avec dépannage : [`docs/GUIDE_WINDOWS_DOCKER.md`](docs/GUIDE_WINDOWS_DOCKER.md)
+> Detailed guide with troubleshooting: [`docs/GUIDE_WINDOWS_DOCKER.md`](docs/GUIDE_WINDOWS_DOCKER.md)
 
 ---
 
-## Structure du projet
+## Project Structure
 
 ```
 sentiment_pipeline/
 │
 ├── notebooks/
-│   ├── 01_exploration_sentiment140.ipynb          # Exploration et qualité des données
-│   ├── 02_preprocessing_sentiment140_pyspark.ipynb # Nettoyage NLP, TF-IDF (PySpark)
-│   └── 03_training_model_spark_mllib.ipynb        # Entraînement et évaluation du modèle
+│   ├── 01_exploration_sentiment140.ipynb          # Data exploration and quality
+│   ├── 02_preprocessing_sentiment140_pyspark.ipynb # NLP cleaning, TF-IDF (PySpark)
+│   └── 03_training_model_spark_mllib.ipynb        # Model training and evaluation
 │
 ├── src/
-│   ├── utils.py                                   # Fonctions partagées (nettoyage, UDFs, logger…)
-│   ├── preprocessing.py                           # Pipeline NLP batch
-│   ├── train_model.py                             # Entraînement du modèle (TF-IDF + Régression Logistique)
-│   ├── evaluate_model.py                          # Évaluation : métriques, matrice de confusion
-│   ├── kafka_producer_sentiment140.py             # Producer Kafka — flux Sentiment140
-│   ├── kafka_producer_apple.py                    # Producer Kafka — flux Apple
-│   ├── spark_streaming_consumer_sentiment140.py   # Consumer Spark Streaming — flux Sentiment140
-│   └── spark_streaming_consumer_apple.py          # Consumer Spark Streaming — flux Apple
+│   ├── utils.py                                   # Shared functions (cleaning, UDFs, logger…)
+│   ├── preprocessing.py                           # Batch NLP pipeline
+│   ├── train_model.py                             # Model training (TF-IDF + Logistic Regression)
+│   ├── evaluate_model.py                          # Evaluation: metrics, confusion matrix
+│   ├── kafka_producer_sentiment140.py             # Kafka producer — Sentiment140 stream
+│   ├── kafka_producer_apple.py                    # Kafka producer — Apple stream
+│   ├── spark_streaming_consumer_sentiment140.py   # Spark Streaming consumer — Sentiment140 stream
+│   └── spark_streaming_consumer_apple.py          # Spark Streaming consumer — Apple stream
 │
 ├── dashboard/
-│   └── app.py                                     # Application Streamlit (visualisation temps réel)
+│   └── app.py                                     # Streamlit application (real-time visualization)
 │
 ├── config/
-│   └── config.py                                  # Configuration centralisée (chemins, seuils, Spark, Kafka)
+│   └── config.py                                  # Centralized configuration (paths, thresholds, Spark, Kafka)
 │
-├── data/                                          # Data Lake — non versionné (voir .gitignore)
-│   ├── raw/                                       # CSV bruts (Sentiment140, Apple Tweets)
-│   ├── processed/                                 # Données nettoyées (Parquet)
-│   ├── models/sentiment_model/                    # Modèle MLlib entraîné et sérialisé
+├── data/                                          # Data Lake — not version-controlled (see .gitignore)
+│   ├── raw/                                       # Raw CSVs (Sentiment140, Apple Tweets)
+│   ├── processed/                                 # Cleaned data (Parquet)
+│   ├── models/sentiment_model/                    # Trained and serialized MLlib model
 │   ├── streaming/
-│   │   ├── sentiment140_predictions/              # Prédictions du flux Sentiment140
-│   │   └── apple_predictions/                     # Prédictions du flux Apple
-│   └── metrics/                                   # Métriques d'évaluation (Parquet)
+│   │   ├── sentiment140_predictions/              # Sentiment140 stream predictions
+│   │   └── apple_predictions/                     # Apple stream predictions
+│   └── metrics/                                   # Evaluation metrics (Parquet)
 │
 ├── docs/
-│   ├── GUIDE_WINDOWS_DOCKER.md                    # Guide d'exécution détaillé (Windows + Docker)
-│   ├── figures/                                   # Graphiques générés par les notebooks
+│   ├── GUIDE_WINDOWS_DOCKER.md                    # Detailed execution guide (Windows + Docker)
+│   ├── figures/                                   # Charts generated by the notebooks
 │   │   └── class_distribution.png
-│   └── screenshots/                               # Captures d'écran du dashboard (à compléter)
+│   └── screenshots/                               # Dashboard screenshots (to be completed)
 │
-├── scripts/                                       # Scripts utilitaires
-├── docker-compose.yml                             # Stack Kafka + Spark (Zookeeper, Kafka, Spark master/worker)
-├── Dockerfile                                     # Image Spark personnalisée (sentiment-spark)
-├── requirements.txt                               # Dépendances Python — environnement local / Streamlit
-├── requirements-spark.txt                         # Dépendances Python — conteneurs Spark
+├── scripts/                                       # Utility scripts
+├── docker-compose.yml                             # Kafka + Spark stack (Zookeeper, Kafka, Spark master/worker)
+├── Dockerfile                                     # Custom Spark image (sentiment-spark)
+├── requirements.txt                               # Python dependencies — local environment / Streamlit
+├── requirements-spark.txt                         # Python dependencies — Spark containers
 ├── .gitignore
 └── README.md
 ```
@@ -262,4 +273,10 @@ sentiment_pipeline/
 
 ---
 
-*Projet Big Data — Pipeline d'analyse de sentiment en temps réel.*
+*Big Data Project — Real-time sentiment analysis pipeline.*
+
+## Authors
+
+This project was developed by Fatiha Khassil and Oumaima Lahkiar, students at ENSIAS.
+
+- Supervised by: Mrs. Widad Elouataoui
